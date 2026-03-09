@@ -1,0 +1,6 @@
+@WalkMood.API_HostAddress = http://localhost:5149
+
+GET {{WalkMood.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

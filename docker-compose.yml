@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  walkmood-sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: walkmood-sql-server
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=WalkMood_StrongPassword123!
+    ports:
+      - "1433:1433"
