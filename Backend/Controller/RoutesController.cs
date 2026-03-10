@@ -11,31 +11,46 @@ namespace WalkMood.API.Controllers
     public class RoutesController : ControllerBase
     {
         private readonly WalkMoodDbContext _context;
-        private readonly IOsmService _osmService; // Servisimizi buraya dahil ediyoruz
+        private readonly IOsmService _osmService;
+        private readonly IGraphService _graphService;
+        private readonly IRoutingService _routingService;
 
-        public RoutesController(WalkMoodDbContext context, IOsmService osmService)
+        public RoutesController(
+            WalkMoodDbContext context, 
+            IOsmService osmService, 
+            IGraphService graphService, 
+            IRoutingService routingService)
         {
             _context = context;
             _osmService = osmService;
+            _graphService = graphService;
+            _routingService = routingService;
         }
 
         [HttpPost("calculate")]
         public async Task<IActionResult> CalculateRoute([FromBody] RouteRequestDto request)
         {
-            // Adım 1: Overpass API'den bölgenin harita verilerini (JSON) çek
+            // 1. Overpass API'den bölgenin harita verilerini (JSON) çek
             var osmJsonData = await _osmService.GetRouteDataAsync(
                 request.StartLat, request.StartLng, 
                 request.EndLat, request.EndLng, 
                 request.Mood);
 
-            // TODO: Adım 2 - İndirilen JSON verisi ayrıştırılacak (Parsing)
-            // TODO: Adım 3 - Dijkstra/A* algoritması ile modlara (Doğa/Güvenli) göre rotalar çizilecek
+            // 2. JSON verisini Yön Bulma Ağına (Graph) Çevir ve Maliyetleri Hesapla
+            var graph = _graphService.BuildGraphFromJson(osmJsonData, request.Mood);
 
-            // Şimdilik API'nin başarıyla haritayı indirdiğini görmek için JSON verisinin ilk 500 karakterini dönüyoruz
-            return Ok(new {
-                Message = "Harita verisi Overpass'ten başarıyla indirildi!",
-                DataPreview = osmJsonData.Substring(0, Math.Min(osmJsonData.Length, 500)) + "..."
-            });
+            if (graph.Count == 0)
+            {
+                return BadRequest(new { Message = "Bu bölge için harita verisi işlenemedi." });
+            }
+
+            // 3. Dijkstra Algoritması ile En İyi Rotayı Bul
+            var routeResult = _routingService.FindOptimalRoute(
+                graph, 
+                request.StartLat, request.StartLng, 
+                request.EndLat, request.EndLng);
+
+            return Ok(routeResult);
         }
     }
 }
